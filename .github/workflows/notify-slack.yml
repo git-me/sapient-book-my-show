@@ -1,0 +1,35 @@
+name: Notify Slack on Push
+
+# Posts a short message to a Slack channel every time a commit is pushed,
+# via a Slack Incoming Webhook. Requires a repo secret named
+# SLACK_WEBHOOK_URL (Settings -> Secrets and variables -> Actions -> New
+# repository secret) pointing at the webhook URL for your Slack channel.
+# See: https://api.slack.com/messaging/webhooks
+#
+# If the secret isn't set yet, this workflow logs a message and exits
+# successfully rather than failing the run.
+
+on:
+  push:
+    branches: [ "**" ]
+
+jobs:
+  slack-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Send push notification to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL secret is not set - skipping. See workflow file header for setup."
+            exit 0
+          fi
+
+          COMMIT_MSG=$(git log -1 --pretty=%s | sed 's/"/\\"/g')
+
+          curl -sf -X POST -H 'Content-type: application/json' \
+            --data "{\"text\": \":rocket: *${{ github.actor }}* pushed to *${{ github.repository }}* (\`${{ github.ref_name }}\`)\n> ${COMMIT_MSG}\n<${{ github.event.head_commit.url }}|View commit>\"}" \
+            "$SLACK_WEBHOOK_URL"
