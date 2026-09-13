@@ -1,0 +1,31 @@
+# Optional convenience for anyone who does NOT already have MySQL 8.0 running
+# locally: this starts one on the same host port / credentials that
+# application.yml expects by default, so `mvn spring-boot:run` on your host
+# machine connects to it exactly as if it were a native local install.
+#
+#   docker compose up -d      # start MySQL 8.0 in the background
+#   mvn spring-boot:run       # run the app on your host as usual
+#   docker compose down       # stop it
+#   docker compose down -v    # stop it and wipe the data volume
+#
+# If you already have MySQL 8.0 running locally with a root/root login, you
+# don't need this file at all - just run `mvn spring-boot:run` directly.
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: booking-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bookingdb
+    ports:
+      - "3306:3306"
+    volumes:
+      - booking_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  booking_mysql_data:

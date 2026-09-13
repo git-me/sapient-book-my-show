@@ -1,0 +1,194 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Movie Booking Platform API",
+    "description": "Read scenario (browse shows for a movie/city/date) and write scenario (book seats for a show) for the XYZ movie ticket booking platform exercise.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "XYZ Booking Platform Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Shows",
+      "description": "Read scenario: browsing theatres/shows currently running a movie in a city on a given date."
+    },
+    {
+      "name": "Bookings",
+      "description": "Write scenario: booking seats for a show."
+    }
+  ],
+  "paths": {
+    "/api/v1/shows": {
+      "get": {
+        "tags": ["Shows"],
+        "summary": "Browse shows for a movie, city and date",
+        "description": "Returns every show (theatre + timing) running the selected movie in the selected city on the selected date, ordered by theatre name and show time. Ticket pricing offers (third-ticket 50% off, afternoon 20% off) are applied at booking time, not shown here, since they depend on how many seats a given customer books.",
+        "operationId": "findShows",
+        "parameters": [
+          {
+            "name": "movieId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" },
+            "example": 1
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Case-insensitive city match.",
+            "example": "Delhi"
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "date" },
+            "example": "2026-08-15"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching shows (empty array if none match).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/ShowResponse" }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or malformed query parameter.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bookings": {
+      "post": {
+        "tags": ["Bookings"],
+        "summary": "Book seats for a show",
+        "description": "Books the requested seats for a show, applying the third-ticket and afternoon-show discounts, and returns the confirmed booking. Safe to retry: repeating the same request with the same Idempotency-Key returns the original booking instead of creating a duplicate.",
+        "operationId": "book",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Client-generated key that de-duplicates retries of the same booking attempt.",
+            "example": "booking-123"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BookingRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Booking confirmed.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BookingResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failure: missing Idempotency-Key, malformed body, or duplicate seat IDs in the request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "409": {
+            "description": "One or more requested seats are already booked, or were booked by a concurrent request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ShowResponse": {
+        "type": "object",
+        "properties": {
+          "showId": { "type": "integer", "format": "int64" },
+          "movieId": { "type": "integer", "format": "int64" },
+          "movieTitle": { "type": "string" },
+          "theatreId": { "type": "integer", "format": "int64" },
+          "theatreName": { "type": "string" },
+          "city": { "type": "string" },
+          "date": { "type": "string", "format": "date" },
+          "time": { "type": "string", "format": "partial-time", "example": "15:00:00" }
+        }
+      },
+      "BookingRequest": {
+        "type": "object",
+        "required": ["customerId", "showId", "seatIds"],
+        "properties": {
+          "customerId": { "type": "integer", "format": "int64", "minimum": 1 },
+          "showId": { "type": "integer", "format": "int64", "minimum": 1 },
+          "seatIds": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": { "type": "integer", "format": "int64", "minimum": 1 }
+          }
+        },
+        "example": {
+          "customerId": 101,
+          "showId": 1,
+          "seatIds": [1, 2, 3]
+        }
+      },
+      "BookingResponse": {
+        "type": "object",
+        "properties": {
+          "bookingId": { "type": "integer", "format": "int64" },
+          "customerId": { "type": "integer", "format": "int64" },
+          "showId": { "type": "integer", "format": "int64" },
+          "seatIds": {
+            "type": "array",
+            "items": { "type": "integer", "format": "int64" }
+          },
+          "totalAmount": { "type": "number", "format": "double" },
+          "status": { "type": "string", "enum": ["CONFIRMED", "CANCELLED"] },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "status": { "type": "integer" },
+          "error": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

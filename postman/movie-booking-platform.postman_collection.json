@@ -1,0 +1,270 @@
+{
+  "info": {
+    "name": "Movie Booking Platform",
+    "description": "Read scenario (browse shows) and write scenario (book seats) for the XYZ movie booking exercise, running against the fixed seed data in src/main/resources/data.sql (loaded automatically into MySQL on every app startup). Import this file into Postman - baseUrl defaults to http://localhost:8080.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Shows (read scenario)",
+      "item": [
+        {
+          "name": "Browse all Delhi shows for movie 1 on 2026-08-15 (8 shows)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/shows?movieId=1&city=Delhi&date=2026-08-15",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "shows"],
+              "query": [
+                { "key": "movieId", "value": "1" },
+                { "key": "city", "value": "Delhi" },
+                { "key": "date", "value": "2026-08-15" }
+              ]
+            },
+            "description": "Returns 8 shows (ids 1-6, 9, 10) from 09:00 through 23:00, including the mini show and the fully sold-out show - browsing doesn't filter by seat availability."
+          },
+          "response": []
+        },
+        {
+          "name": "Browse shows - different city, same date (Mumbai)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/shows?movieId=1&city=Mumbai&date=2026-08-15",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "shows"],
+              "query": [
+                { "key": "movieId", "value": "1" },
+                { "key": "city", "value": "Mumbai" },
+                { "key": "date", "value": "2026-08-15" }
+              ]
+            },
+            "description": "Show 7 only - proves the city filter actually filters."
+          },
+          "response": []
+        },
+        {
+          "name": "Browse shows - Hindi edition (movieId=2, Bengaluru)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/shows?movieId=2&city=Bengaluru&date=2026-08-15",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "shows"],
+              "query": [
+                { "key": "movieId", "value": "2" },
+                { "key": "city", "value": "Bengaluru" },
+                { "key": "date", "value": "2026-08-15" }
+              ]
+            },
+            "description": "Show 11 only - same title text as movie 1 ('Interstellar'), but a different movieId (the Hindi dub), proving filtering is by id not title text."
+          },
+          "response": []
+        },
+        {
+          "name": "Browse shows - movie with zero shows (expect empty array)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/shows?movieId=3&city=Delhi&date=2026-08-15",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "shows"],
+              "query": [
+                { "key": "movieId", "value": "3" },
+                { "key": "city", "value": "Delhi" },
+                { "key": "date", "value": "2026-08-15" }
+              ]
+            },
+            "description": "Movie 3 ('The Silent Echo') intentionally has no shows anywhere in the seed data."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bookings (write scenario)",
+      "item": [
+        {
+          "name": "Show 2 (15:00) - book 3 seats, both discounts stack -> 380.00",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "postman-show2-stack" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 101,\n  \"showId\": 2,\n  \"seatIds\": [1, 2, 3]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "600 base -> 100 off (3rd ticket) -> 120 off (afternoon) -> 380.00 total."
+          },
+          "response": []
+        },
+        {
+          "name": "Show 5 (20:00) - book 3 seats, only 3rd-ticket discount -> 500.00",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "postman-show5-third-only" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 105,\n  \"showId\": 5,\n  \"seatIds\": [1, 2, 3]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "600 base -> 100 off (3rd ticket only, evening show) -> 500.00 total."
+          },
+          "response": []
+        },
+        {
+          "name": "Show 3 (17:59) - afternoon window's INCLUDED end edge -> 160.00",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "postman-show3-edge" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 103,\n  \"showId\": 3,\n  \"seatIds\": [5]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "17:59 -> hour 17 -> still counts as afternoon -> 200 * 0.8 = 160.00."
+          },
+          "response": []
+        },
+        {
+          "name": "Show 4 (18:00) - one hour later, EXCLUDED from afternoon window -> 200.00",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "postman-show4-edge" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 104,\n  \"showId\": 4,\n  \"seatIds\": [6]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "18:00 -> hour 18 -> no afternoon discount -> 200.00. Compare with the 17:59 request above."
+          },
+          "response": []
+        },
+        {
+          "name": "Show 9 (mini show) - book the last remaining seat -> 200.00",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "postman-show9-last-seat" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 107,\n  \"showId\": 9,\n  \"seatIds\": [12]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "Show 9 only has two seats total; seat 11 (BAL1) is already booked in the seed data, so seat 12 (BAL2) is the last one available."
+          },
+          "response": []
+        },
+        {
+          "name": "Show 9 (mini show) - the already-booked seat (expect 409, no setup needed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "postman-show9-conflict" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 108,\n  \"showId\": 9,\n  \"seatIds\": [11]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "Seat 11 (BAL1) is pre-booked in the seed data - this returns 409 immediately, no earlier booking request required."
+          },
+          "response": []
+        },
+        {
+          "name": "Show 10 (fully sold-out) - any seat (expect 409, no setup needed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "postman-show10-conflict" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 109,\n  \"showId\": 10,\n  \"seatIds\": [1]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "All 10 seats on show 10 are pre-booked in the seed data - 409 immediately."
+          },
+          "response": []
+        },
+        {
+          "name": "Repeat a booking with the same Idempotency-Key (expect same bookingId)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "postman-fixed-key-001" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": 111,\n  \"showId\": 6,\n  \"seatIds\": [8]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/bookings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "bookings"]
+            },
+            "description": "Send this request twice in a row (same fixed Idempotency-Key both times). The second response should return the exact same bookingId instead of creating a new booking."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

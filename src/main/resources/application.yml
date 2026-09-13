@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    # Local MySQL 8.0 instance. createDatabaseIfNotExist=true means you only
+    # need MySQL itself running - the "bookingdb" schema is created for you.
+    url: jdbc:mysql://localhost:3306/bookingdb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      # Schema is owned entirely by schema.sql below, not by Hibernate -
+      # ddl-auto stays out of the way completely.
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  sql:
+    init:
+      # MySQL is not an "embedded" database, so schema.sql/data.sql are not
+      # run automatically unless this is set to "always". This runs them on
+      # every application startup: schema.sql drops/recreates every table,
+      # then data.sql reseeds it - see both files for the actual SQL.
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+
+server:
+  port: 8080
